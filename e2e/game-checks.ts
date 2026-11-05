@@ -54,17 +54,19 @@ export async function ensurePlayableMenu(page: Page) {
   // trainer guide also mutates storage after menu paint. Settle both before other e2e.
   await page.evaluate(async () => {
     const app = window.__pokebonkLocalApp;
-    const settings = app.meta.profile.settings as {tours?: string};
-    const existing = settings.tours ?? '';
+    const meta = app.meta as typeof app.meta & {save(): Promise<void>};
+    const settings = meta.profile.settings as Record<string, unknown>;
+    const existing = typeof settings['tours'] === 'string' ? settings['tours'] : '';
     if (!existing.split(',').filter(Boolean).includes('gd')) {
-      settings.tours = existing ? `${existing},gd` : 'gd';
+      settings['tours'] = existing ? `${existing},gd` : 'gd';
     }
-    try { localStorage.setItem('pb.tours', settings.tours ?? ''); } catch {}
-    await app.meta.save();
+    try { localStorage.setItem('pb.tours', String(settings['tours'] ?? '')); } catch {}
+    await meta.save();
   });
   await page.waitForFunction(
     () => {
-      const tours = window.__pokebonkLocalApp?.meta?.profile?.settings?.tours ?? '';
+      const settings = window.__pokebonkLocalApp?.meta?.profile?.settings as Record<string, unknown> | undefined;
+      const tours = typeof settings?.['tours'] === 'string' ? settings['tours'] : '';
       return tours.includes('gd') && !document.querySelector('.pb-guide');
     },
     null,
