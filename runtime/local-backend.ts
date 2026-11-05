@@ -94,7 +94,7 @@ class LocalSandboxBackend implements LocalBackendContract {
     const profile: LocalProfile = {
       ...merged,
       settings: {...localObject(defaults['settings'] ?? {}), ...localObject(saved['settings'] ?? {})},
-      league:numbers('league'),unlocked:numbers('unlocked'),seen:numbers('seen'),forms:numbers('forms'),shinies:numbers('shinies'),classics:numbers('classics'),
+      league:numbers('league'),unlocked:numbers('unlocked'),seen:numbers('seen'),forms:numbers('forms'),shinies:numbers('shinies'),classics:numbers('classics'),johtoForms:numbers('johtoForms'),
       research:counts('research'),lab:counts('lab'),biomes:counts('biomes'),bag:counts('bag'),medals:counts('medals'),quests:counts('quests'),counters:counts('counters'),wins,captured:counts('captured'),
       treasures:Object.fromEntries(Object.entries(localObject(merged['treasures']??{})).map(([id,value])=>{
         const wheel=localObject(value);
@@ -104,7 +104,7 @@ class LocalSandboxBackend implements LocalBackendContract {
       runs:localList(merged['runs'] ?? [], entry => {const run=localObject(entry);return {...run,id:localString(run['id'])};}),
       stardust:localNumber(merged['stardust'] ?? 0),totalStardust:localNumber(merged['totalStardust'] ?? 0),
     };
-    for (const key of ['starter','lastSpecies'] as const) if (merged[key] !== undefined) profile[key] = localNumber(merged[key]);
+    for (const key of ['starter','starterJ','lastSpecies'] as const) if (merged[key] !== undefined) profile[key] = localNumber(merged[key]);
     for (const key of ['daily','weekly'] as const) if (merged[key] !== undefined) {
       const period=localObject(merged[key]);
       profile[key]={...period,ids:localList(period['ids'],localString),prog:localList(period['prog'] ?? [],localNumber),claimed:localList(period['claimed'] ?? [],localNumber)};

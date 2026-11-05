@@ -7,7 +7,9 @@ requested three missing platform icons and four missing CSS backgrounds.
 `scripts/resource-contract.json` is an independent, checked-in baseline of
 required resource paths and SHA-256 hashes of the pristine upstream HTML,
 JavaScript, CSS, JSON catalogs and SVG inputs. It includes the accepted snapshot
-inventory plus the seven dependencies reproduced on the desktop page. It is not
+inventory and independently reviewed dependencies. The original baseline added
+the seven dependencies reproduced on the desktop page; the [0.9.8 review](upstream-0.9.8-review.md)
+records their upstream replacements and new resource families. It is not
 a generated output of acquisition, preparation, verification or promotion.
 
 - Acquisition downloads the required paths as mandatory resources.
@@ -16,8 +18,8 @@ a generated output of acquisition, preparation, verification or promotion.
 - Payload verification checks the independent requirements even when the file
   manifest has been regenerated without a missing file. It validates PNG and
   WebP signatures and checks the resource-review digest recorded at preparation.
-- Native desktop acceptance opens the actual desktop page and decodes its three
-  platform icons and all four computed CSS backgrounds. Network failures remain
+- Native desktop acceptance opens the actual desktop page, checks its four
+  inline platform SVGs and decodes all five computed CSS backgrounds. Network failures remain
   fatal; retries and missing-image reporting are not suppressed.
 
 This deliberately holds automatic upstream updates for dependency review.

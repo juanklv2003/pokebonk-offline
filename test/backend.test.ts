@@ -9,11 +9,11 @@ import type {Profile} from '../types/profile.d.ts';
 import {record} from '../types/data.ts';
 
 const template = await readFile('dist/runtime/local-backend.js', 'utf8');
-function backend(storage = new Map<string,string>(), fault?:(operation:string,key:string)=>void): SandboxBackend {
+function backend(storage = new Map<string,string>(), fault?:(operation:string,key:string)=>void,johto=false): SandboxBackend {
   const defaults = () => ({ settings:{audio:1},league:[],unlocked:[],seen:[],forms:[],shinies:[],classics:[],research:{},lab:{},biomes:{},bag:{},cosmetics:[],itemsOff:[],quests:{},counters:{},runs:[],stardust:0 });
   const context = { structuredClone,crypto:webcrypto,TextEncoder,Date,document:{title:''},
     localStorage:{getItem:(key:string)=>storage.get(key)??null,setItem:(key:string,value:string)=>{fault?.('set',key);storage.set(key,value)},removeItem:(key:string)=>{fault?.('remove',key);storage.delete(key)}},
-    __PROFILE__:defaults,__SEASON__:()=>({season:2}),__ROSTER__:[{id:4},{id:150}],__REGISTRY__:{pokemon:[{id:4},{id:5},{id:150}],get:(id:number)=>({family:id}),root:(id:number)=>({id})},
+    __PROFILE__:defaults,__SEASON__:()=>({season:johto?3:2}),__ROSTER__:[{id:4},{id:150},...johto?[{id:152},{id:155}]:[]],__REGISTRY__:{pokemon:[{id:4},{id:5},{id:150},...johto?[{id:152},{id:155}]:[]],get:(id:number)=>({family:id}),root:(id:number)=>({id})},
     __TREASURES__:[{id:'fire',starter:4,prizes:[{id:'candy',cosmetics:[]},{id:'grand',cosmetics:['tlook:4:4','frame:tr-fire-2']}]},{id:'water',starter:7,prizes:[{id:'look',cosmetics:['tlook:7:3']}]}],__LAB__:[{id:'move',max:4}],__ITEMS__:[{key:'soda-pop'}],__BIOMES__:[{id:'forest',size:100},{id:'future'}],__EVENTS__:[],__MEDALS__:4,__REFRESH__:(profile:Profile)=>{for(const period of ['daily','weekly'] as const)profile[period]??={ids:['task1','task2','task3'],prog:[],claimed:[]};},__TASK__:()=>({goal:3}),__QUESTS__:[{id:"kills100",title:"Veteran"},{id:"look4",look:{member:4,n:1}}],__SCORE__:()=>0,__COSMETICS__:['frame:master'],__PREPARATIONS__:['rare-candy','honey'] };
   const value: unknown = new vm.Script(template+'\n;createLocalSandboxBackend()').runInNewContext(context);
   const api=record(value);
@@ -187,5 +187,20 @@ test('startup rejects corrupt or incompatible recovery data before writing the p
   for(const broken of ['{',JSON.stringify({ticket:{id:'local-old',seed:1,boosts:[]},save:'{}',hash:'bad'})]) {
     const storage=new Map<string,string>(),b=backend(storage);await b.loadProfile();storage.set('pb.runauto.local-sandbox',broken);const before=[...storage];
     await assert.rejects(backend(storage).loadProfile());assert.deepEqual([...storage],before);
+  }
+});
+
+test('Johto profiles unlock their starter and forms while preserving an existing choice',async()=>{
+  const storage=new Map<string,string>(),api=backend(storage,undefined,true),fresh=await api.loadProfile();
+  assert.equal(fresh.starterJ,152);
+  assert.ok(Array.isArray(fresh.johtoForms)&&fresh.johtoForms.includes(155));
+  fresh.starterJ=155;fresh.lastSpecies=150;fresh.counters['kills']=23;
+  storage.set('pokebonk.local.profile.v1',JSON.stringify(fresh));
+  const restored=await backend(storage,undefined,true).loadProfile();
+  assert.equal(restored.starterJ,155);assert.equal(restored.lastSpecies,150);assert.equal(restored.counters['kills'],23);
+  for(const invalid of [{starterJ:'155'},{johtoForms:['152']}]){
+    const raw=JSON.stringify(invalid),bad=new Map([['pokebonk.local.profile.v1',raw]]);
+    await assert.rejects(backend(bad,undefined,true).loadProfile());
+    assert.equal(bad.get('pokebonk.local.profile.v1'),raw);
   }
 });

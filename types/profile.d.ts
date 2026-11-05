@@ -4,6 +4,8 @@ export interface Profile extends Record<string, unknown> {
   settings: Record<string, unknown>;
   localSandbox?: boolean;
   starter?: number;
+  starterJ?: number;
+  johtoForms?: number[];
   lastSpecies?: number;
   league: number[];
   unlocked: number[];

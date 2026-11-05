@@ -4,6 +4,7 @@ import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { ast, nodes, nodesOf, literal, maybeName, nameOf, requireNode } from './source.ts';
 import { inspectGame } from './patch-game.ts';
+import {gameModules} from './game-modules.ts';
 import {inspectReleaseIcons} from './release-icons.ts';
 import { inspectIconCatalogs } from './catalog-icons.ts';
 import {inspectItemIcons} from './item-icons.ts';
@@ -100,13 +101,8 @@ for (;;) {
   const downloaded = await Promise.all(batch.map(async key=>({key,data:await required(key)})));
   for(const {key,data} of downloaded)if (/\.(js|css|webmanifest)$/.test(key)) discover(data.toString(), key);
 }
-const mainKey = [...files.keys()].find(key => key.endsWith('.js') && contents(key).includes(' as App}'));
-if (!mainKey) throw new Error('No application module found');
-const main = contents(mainKey);
-const configKey = [...files.keys()].find(key => key.endsWith('.js') && contents(key).includes('slot-move') && key !== mainKey);
-if (!configKey) throw new Error('No configuration module found');
-const config = contents(configKey);
-const info = inspectGame(main, config);
+const modules=gameModules(files),main=modules.main.source,config=modules.config.source,menus=modules.menus.source;
+const info = inspectGame(main, config,menus);
 const version = versionForBuild(info.configTree,buildId);
 if (!version) throw new Error('Game/config build mismatch');
 const resourceContract=await readResourceContract();
@@ -161,15 +157,15 @@ for(const key of treasureAssetPaths(config))add(key);
 for (const region of Object.keys(info.versions).filter(key => key.startsWith('env/'))) {
   for (const name of region === 'env/common' ? ['atlas.json','atlas.png'] : ['atlas.json','atlas.png','ground.png','cliff.png','path.png']) add(`assets/${region}/${name}`);
 }
-const allTrees = [ast(main), ast(config)];
+const allTrees = [ast(main), ast(config),...(menus===main?[]:[info.tree])];
 const strings = allTrees.flatMap(tree => nodes(tree, n => typeof literal(n) === 'string').map(literal).filter((value): value is string => typeof value === 'string'));
 for (const value of strings) {
   if (/^(?:tower|halloween|desert|glacier|coast|ruins?|storm|frost|sanct)_[a-z_]+$/.test(value)) add(`assets/models/${value}.glb`, true);
   if (/^(?:env|ui|items|models|music|portraits|pmd)\/[\w./-]+\.(png|jpg|glb|ogg|json)$/.test(value)) add('assets/' + value);
-  if (/^(tr|frame|sym|deco):[\w-]+$/.test(value)) {
+  if (/^(tr|frame|bg|sym|deco):[\w-]+$/.test(value)) {
     const [kind, id] = value.split(':');
-    const dir = new Map([['tr','ui/avatars'],['frame','ui/frames'],['sym','ui/clan/sym'],['deco','ui/clan/deco']]).get(kind ?? '');
-    add(`assets/${dir}/${id}.png`, true);
+    const dir = new Map([['tr','ui/avatars'],['frame','ui/frames'],['bg','ui/banners'],['sym','ui/clan/sym'],['deco','ui/clan/deco']]).get(kind ?? '');
+    add(`assets/${dir}/${id}.${kind==='bg'?'jpg':'png'}`, true);
   }
 }
 // Catalog-driven cosmetics and every literal icon/model call. Missing candidates are
@@ -180,13 +176,13 @@ for (const value of Object.values(info.values)) if (objectArray(value)) for (con
   }
   if (typeof entry['style'] === 'string' && entry['style']) add(`assets/ui/frames/look-${entry['style']}.png`, true);
 }
-const {iconFunction,statusIcons,reactionIcons}=inspectIconCatalogs(main,config);
-for(const key of [...statusIcons,...reactionIcons,...inspectReleaseIcons(main)])add(key);
+const {iconFunction,appIconFunction,statusIcons,reactionIcons}=inspectIconCatalogs(main,config,menus);
+for(const key of [...statusIcons,...reactionIcons,...inspectReleaseIcons(menus)])add(key);
 for (const tree of allTrees) {
   for (const call of nodesOf(tree, 'CallExpression')) {
     const method = call.callee.type === 'MemberExpression' ? maybeName(call.callee.property) : maybeName(call.callee);
     const words = nodes(call.arguments[0], n => typeof literal(n) === 'string').map(literal).filter((s): s is string => typeof s === 'string' && /^[\w-]+$/.test(s));
-    if (method === iconFunction && call.arguments[0]?.type !== 'BinaryExpression') words.forEach(s => add(`assets/ui/icons/${s}.png`, true));
+    if (method === (tree===allTrees[0]?appIconFunction:iconFunction) && call.arguments[0]?.type !== 'BinaryExpression') words.forEach(s => add(`assets/ui/icons/${s}.png`, true));
     if (method && ['model','place','bu','xu'].includes(method)) words.forEach(s => add(`assets/models/${s}.glb`, true));
   }
   for (const property of nodesOf(tree, 'Property', n => ['model','shrine','portal','gate'].includes(maybeName(n.key) ?? ''))) {
@@ -195,12 +191,12 @@ for (const tree of allTrees) {
   }
 }
 // Calls through indirect maps store model names as [name, size].
-for (const node of nodesOf(info.tree, 'ArrayExpression', n => n.elements.length === 2)) {
+for (const node of [...new Set([info.tree,info.appTree])].flatMap(tree=>nodesOf(tree, 'ArrayExpression', n => n.elements.length === 2))) {
   const value = literal(node.elements[0]);
   if (typeof value === 'string' && /^[\w-]+$/.test(value) && typeof literal(node.elements[1]) === 'number') add(`assets/models/${value}.glb`, true);
 }
 for (const name of ['battle1','battle2','battle3','battle4','boss','menu','halloween-menu','halloween-battle','halloween-boss']) add(`assets/music/${name}.ogg`, true);
-for (const declaration of nodesOf(info.tree, 'VariableDeclarator', n => n.init?.type === 'ObjectExpression')) {
+for (const declaration of [...new Set([info.tree,info.appTree])].flatMap(tree=>nodesOf(tree, 'VariableDeclarator', n => n.init?.type === 'ObjectExpression'))) {
   const properties = requireNode(declaration.init, 'ObjectExpression').properties.filter(p => p.type === 'Property');
   if (properties.some(p => maybeName(p.key) === 'menu') && properties.some(p => maybeName(p.key) === 'ingame1')) {
     for (const property of properties) add(`assets/music/${nameOf(property.key)}.ogg`);

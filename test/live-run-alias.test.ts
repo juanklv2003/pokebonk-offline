@@ -22,3 +22,11 @@ test('unknown or ambiguous checkpoint contracts stop preparation',()=>{
   assert.throws(()=>patchLiveRunAlias(fixture.replace('this.snap','this.profile')),/live run backend call/);
   assert.throws(()=>patchLiveRunAlias(fixture+fixture.replace('class Meta','class Duplicate').replace('function make','function other')),/live run backend call/);
 });
+
+test('split modules retain the live checkpoint alias across the backend factory import',()=>{
+  const factory='function make(){return createLocalSandboxBackend()}';
+  const checkpoint=fixture.slice(fixture.indexOf('class Meta'));
+  const patched=patchLiveRunAlias(factory,checkpoint);
+  assert.equal(invoke(patched+checkpoint),JSON.stringify([['local','ticket',['result','stats','original']]]));
+  assert.throws(()=>patchLiveRunAlias(factory,checkpoint.replace('this.snap','this.profile')),/live run backend call/);
+});

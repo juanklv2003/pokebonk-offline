@@ -4,6 +4,7 @@ import {mkdtemp,rm,mkdir,writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import assert from 'node:assert/strict';
+import {dismissMenuNotices} from './game-checks.ts';
 
 const userData=await mkdtemp(path.join(os.tmpdir(),'pokebonk-fullscreen-game-'));
 const game=path.resolve(process.argv[2]??'build/game');
@@ -26,12 +27,7 @@ try {
   await page.waitForFunction(()=>window.__pokebonkLocalApp?.meta?.profile?.localSandbox||Reflect.get(window,'__pokebonkSmokeBootState')!=='pending',null,{timeout:120000});
   assert.equal(await page.evaluate(()=>!!window.__pokebonkLocalApp?.meta?.profile?.localSandbox),true,'Upstream entry completed without a local profile');
   await app.evaluate(({app,BrowserWindow})=>{app.focus({steal:true});BrowserWindow.getAllWindows()[0]?.focus();});
-  for(let attempt=0;attempt<3;attempt++) {
-    for(const name of ['知道了','跳過']) {
-      const button=page.getByRole('button',{name,exact:true}).first();
-      if(await button.waitFor({state:'visible',timeout:2000}).then(()=>true,()=>false))await button.click();
-    }
-  }
+  await dismissMenuNotices(page);
   const toggle=page.locator('.fs-btn');
   await toggle.waitFor({state:'visible',timeout:120000});
   const label=await toggle.getAttribute('aria-label');

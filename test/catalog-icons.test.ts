@@ -14,7 +14,15 @@ const config=`const reactions=['gg','love'];const marker='slot-move';export {rea
 const main="import {reactionExport as reactionList} from './config.js';"
  +"function icon(id){return `ui/icons/${id}.png`;}"
  +"const releaseCategories=[{id:'new',icon:'news'},{id:'better',icon:'level'},{id:'fix',icon:'check'}];const statuses=[{id:'poison'}];for(const status of statuses)icon('st-'+status.id);"
- +"reactionList.map(reaction=>icon('r-'+reaction));class Application{}export{Application as App}";
+ +"reactionList.map(reaction=>icon('r-'+reaction));function defaults(){return {stardust:0,lab:{},league:[],lastSpecies:4,settings:{}};}class Application{}export{Application as App}";
+
+test('split icon renderers resolve the application import to the menu export',()=>{
+  const menus=main.replace("const statuses=[{id:'poison'}];for(const status of statuses)icon('st-'+status.id);",'')+';export {icon as sharedIcon};';
+  const app="import {sharedIcon as renamedIcon} from './menus.js';const statuses=[{id:'poison'}];for(const status of statuses)renamedIcon('st-'+status.id);";
+  assert.deepEqual(inspectIconCatalogs(app,config,menus).statusIcons,['assets/ui/icons/st-poison.png']);
+  assert.throws(()=>inspectIconCatalogs(app.replace('sharedIcon','wrongIcon'),config,menus),/icon application import/);
+  assert.throws(()=>inspectIconCatalogs(app+"renamedIcon('unknown-'+value)",config,menus),/Unsupported dynamic icon prefix/);
+});
 
 test('dynamic reaction icons follow catalog additions and renamed import/export bindings',()=>{
   for(const rename of [false,true]) {

@@ -48,8 +48,8 @@ try {
   await dismissMenuNotices(page);
   await checkOfflineFriends(page);
   await page.locator('.dk-btn').click();
-  await page.locator('.dk-gem-ic img').first().waitFor({state:'visible'});
-  assert.equal(await page.locator('.dk-gem-ic img').count(),3);
+  await page.locator('.dk-card .dk-ic svg').first().waitFor({state:'visible'});
+  assert.equal(await page.locator('.dk-card .dk-ic svg').count(),4);
   await page.locator('.dk-scr img').evaluateAll(async images=>{
     await Promise.all(images.map(async image=>{
       if(!(image instanceof HTMLImageElement))throw new Error('Invalid desktop page image');
@@ -57,7 +57,7 @@ try {
       if(!image.naturalWidth)throw new Error('Undecoded desktop page image: '+image.src);
     }));
   });
-  assert.equal(await page.locator('.dk-bg').count(),4);
+  assert.equal(await page.locator('.dk-bg').count(),5);
   await page.locator('.dk-bg').evaluateAll(async backgrounds=>{
     await Promise.all(backgrounds.map(async element=>{
       const url=/^url\(["']?(.*?)["']?\)$/.exec(getComputedStyle(element).backgroundImage)?.[1];

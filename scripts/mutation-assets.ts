@@ -3,8 +3,11 @@ import {objectArray,record,text} from '../types/data.ts';
 
 export function inspectMutationAssets(config:string) {
   const {values}=configContext(config);
-  const catalog=one(Object.values(values).filter(objectArray).filter(entries=>
-    entries.some(entry=>'prize' in entry)&&entries.every(entry=>'rules' in entry&&'tier' in entry)), 'mutation catalog');
+  const catalogs=Object.values(values).filter(objectArray).filter(entries=>
+    entries.some(entry=>'prize' in entry)&&entries.every(entry=>'rules' in entry&&'tier' in entry));
+  // Generation-specific arrays are also exposed alongside the combined catalog.
+  // Accept only a unique strict superset; conflicting or duplicate catalogs reject.
+  const catalog=one(catalogs.filter(candidate=>catalogs.every(other=>other===candidate||other.length<candidate.length&&other.every(entry=>candidate.some(value=>JSON.stringify(value)===JSON.stringify(entry))))),'mutation catalog');
   const ids=new Set<string>();
   const assets=new Set<string>();
   for(const entry of catalog) {

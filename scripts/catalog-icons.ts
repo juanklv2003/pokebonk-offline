@@ -32,18 +32,20 @@ export function reactionIconPaths(tree:AnyNode,configTree:AnyNode,values:Record<
   return tokens.map(id=>`assets/ui/icons/r-${id}.png`);
 }
 
-export function inspectIconCatalogs(main:string,config:string) {
-  const tree=ast(main);
+export function inspectIconCatalogs(main:string,config:string,menus=main) {
+  const tree=ast(menus),appTree=menus===main?tree:ast(main);
   const context=configContext(config);
   const iconFunction=nameOf(one(nodesOf(tree,'FunctionDeclaration',n=>n.params.length>0
-    &&main.slice(n.start,n.end).includes('ui/icons/${')),'icon function').id);
+    &&menus.slice(n.start,n.end).includes('ui/icons/${')),'icon function').id);
+  const iconExport=menus===main?undefined:one(nodesOf(tree,'ExportSpecifier',n=>maybeName(n.local)===iconFunction),'icon menu export');
+  const appIconFunction=iconExport?one(nodesOf(appTree,'ImportSpecifier',n=>maybeName(n.imported)===maybeName(iconExport.exported)),'icon application import').local.name:iconFunction;
   // Newly introduced concatenated icon families require a catalog resolver,
   // rather than turning an unresolved prefix into an optional filename guess.
-  for(const call of nodesOf(tree,'CallExpression',n=>maybeName(n.callee)===iconFunction)) {
+  for(const call of [...nodesOf(tree,'CallExpression',n=>maybeName(n.callee)===iconFunction),...menus===main?[]:nodesOf(appTree,'CallExpression',n=>maybeName(n.callee)===appIconFunction)]) {
     const arg=call.arguments[0];
     if(arg?.type==='BinaryExpression'&&arg.operator==='+'
       &&!['st-','r-'].includes(String(literal(arg.left))))throw new Error('Unsupported dynamic icon prefix');
   }
-  return {iconFunction,statusIcons:statusIconPaths(tree,iconFunction),
+  return {iconFunction,appIconFunction,statusIcons:statusIconPaths(appTree,appIconFunction),
     reactionIcons:reactionIconPaths(tree,context.tree,context.values,iconFunction)};
 }

@@ -1,5 +1,17 @@
 # pokebonk-offline-builder
 
+## 0.0.20
+
+### Patch Changes
+
+- Resolve the season calculator from its actual import module when preparing split upstream bundles.
+
+## 0.0.19
+
+### Patch Changes
+
+- Support the upstream 0.9.8 split application/menu modules and review the Johto resource catalogs for offline packaging.
+
 ## 0.0.18
 
 ### Patch Changes

@@ -5,7 +5,7 @@ export function inspectItemIcons(config:string,itemData:unknown) {
   const {values}=configContext(config);
   const catalogs=Object.values(values).filter(objectArray);
   const upgrades=one(catalogs.filter(items=>items.every(item=>'key' in item&&'stat' in item&&'per' in item)),'upgrade item catalog');
-  const held=one(catalogs.filter(items=>items.every(item=>'key' in item&&'mods' in item)),'held item catalog');
+  const held=one(catalogs.filter(items=>items.every(item=>'key' in item&&'mods' in item&&!('passive' in item))),'held item catalog');
   const shop=one(catalogs.filter(items=>items.every(item=>'key' in item&&'price' in item)),'shop item catalog');
   const tokens=new Set<string>();
   for(const catalog of [upgrades,held,shop]) {

@@ -8,9 +8,22 @@ export async function dismissMenuNotices(page: Page) {
   for(let attempt=0;attempt<3;attempt++) {
     const gpu=page.getByRole('button',{name:'知道了',exact:true}).first();
     if(await gpu.isVisible().catch(()=>false))await gpu.click();
-    const tour=page.getByRole('button',{name:'跳過',exact:true}).first();
-    if(await tour.waitFor({state:'visible',timeout:2000}).then(()=>true,()=>false))await tour.click();
+    const tour=page.getByRole('button',{name:/^跳過(?:指南)?/}).first();
+    if(await tour.waitFor({state:'visible',timeout:2000}).then(()=>true,()=>false)) {
+      await page.keyboard.press('Escape');
+      await tour.waitFor({state:'hidden'});
+    }
   }
+}
+
+export async function loadAchievementCards(page:Page,limit:number) {
+  for(let batch=0;batch<=limit;batch++) {
+    const count=await page.locator('.q-card').count();
+    const more=await page.evaluate(()=>{const marker=document.querySelector('.q-more');marker?.scrollIntoView({block:'end'});return Boolean(marker);});
+    if(!more)return;
+    await page.waitForFunction(count=>document.querySelectorAll('.q-card').length>count||!document.querySelector('.q-more'),count,{timeout:5000});
+  }
+  throw new Error('Achievement pagination did not finish');
 }
 
 export async function checkGame(page: Page,metadata: BuildMetadata,label: string,{gameplay=true,pointerLock=false,focusPointerInput}:{gameplay?:boolean;pointerLock?:boolean;focusPointerInput?:()=>Promise<void>}={}) {
@@ -72,8 +85,10 @@ export async function checkGame(page: Page,metadata: BuildMetadata,label: string
   assert.ok(metadata.itemIcons.length>0);
   await page.evaluate(async paths=>{await Promise.all(paths.map(async path=>{const image=new Image();image.src='/'+path;await image.decode();if(!image.naturalWidth)throw new Error('Undecoded catalog icon: '+path);}));},[...metadata.statusIcons,...metadata.reactionIcons,...metadata.itemIcons]);
   await page.getByRole('button',{name:/^成就 /}).click();
+  await loadAchievementCards(page,metadata.achievements);
   const general=await page.locator('.q-card.done').count();
   await page.getByRole('button',{name:'外觀',exact:true}).click();
+  await loadAchievementCards(page,metadata.achievements);
   assert.equal(general+await page.locator('.q-card.done').count(),metadata.achievements);
   await page.getByRole('button',{name:'Esc 返回',exact:true}).click();
   await page.evaluate(async()=>{await window.__pokebonkLocalApp.backend.chooseStarter(null,150);localStorage.setItem('native-proof','saved');});
@@ -103,6 +118,10 @@ export async function checkGame(page: Page,metadata: BuildMetadata,label: string
     {species:7,biome:'coast',tier:1},
     {species:144,biome:'glacier',tier:2},
     {species:92,biome:'graveyard',tier:0,mode:'tower'},
+    {species:155,biome:'canela',tier:0},
+    {species:158,biome:'cave',tier:1},
+    {species:152,biome:'encina',tier:0},
+    {species:249,biome:'iris',tier:1},
   ]) {
     assert.equal(await page.evaluate(config=>window.__pokebonkLocalApp.startRun({...config,boosts:[]}),config),true);
     await page.waitForFunction(()=>(window.__pokebonkLocalApp.run?.time ?? 0)>3,null,{timeout:90000});

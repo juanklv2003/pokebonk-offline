@@ -12,6 +12,8 @@ export async function checkRunSaves(page:Page,restart:()=>Promise<Page>,focus:()
     await page.waitForFunction(()=>(window.__pokebonkLocalApp.run?.time??0)>3,null,{timeout:30000});
     if(kind==='manual') {
       await page.evaluate(()=>{const run=window.__pokebonkLocalApp.run;if(!run)throw Error('Missing run');run.input.releaseLock();run.pause();});
+      await page.waitForFunction(()=>document.pointerLockElement===null&&window.__pokebonkLocalApp.run?.state==='paused');
+      await focus();
       await page.getByRole('button',{name:'儲存並退出',exact:true}).click();
       await page.waitForFunction(()=>!window.__pokebonkLocalApp.run,null,{timeout:15000});
     } else {

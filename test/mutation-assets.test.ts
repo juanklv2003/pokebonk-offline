@@ -21,3 +21,11 @@ test('missing, ambiguous, duplicate and unsafe mutation catalogs stop collection
     config.replace("banner:'Banner'","banner:null"),
   ])assert.throws(()=>inspectMutationAssets(source),/mutation/);
 });
+
+test('a combined catalog includes generation-specific mutation rewards',()=>{
+  const johto=config.replace('mutations','johto').replaceAll('glass','daynight');
+  const combined=config+johto+'const combined=[...mutations,...johto];';
+  assert.ok(inspectMutationAssets(combined).includes('assets/ui/frames/mut-daynight.png'));
+  assert.equal(inspectMutationAssets(combined).length,6);
+  assert.throws(()=>inspectMutationAssets(config+johto),/mutation catalog/);
+});

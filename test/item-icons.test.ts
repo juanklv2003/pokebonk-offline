@@ -28,3 +28,7 @@ test('missing, ambiguous, duplicate or unsafe item catalogs fail explicitly',()=
   assert.throws(()=>inspectItemIcons(config,{...data,'enigma-berry':{icon:'../secret.png'}}),/item icon path/);
   assert.throws(()=>inspectItemIcons(config,{...data,'enigma-berry':null}),/item data entry/);
 });
+
+test('passive relic catalogs do not masquerade as held items',()=>{
+  assert.deepEqual(inspectItemIcons(config+"const relics=[{key:'r-comet',mods:[],passive:'Comet'}];",data),inspectItemIcons(config,data));
+});

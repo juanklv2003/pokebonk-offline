@@ -19,7 +19,7 @@ test('a checked-out snapshot prepares without fetch and rejects candidate public
     execFileSync(process.execPath,['scripts/verify-game.ts',root],{stdio:'pipe'});
     const manifestPath=path.join(root,'asset-manifest.json'),savedManifest=await readFile(manifestPath,'utf8');
     const payload=parseManifest(JSON.parse(savedManifest));
-    for(const omitted of ['assets/ui/icons/pc-tower.png','assets/ui/desktop/forest.webp','assets/ui/frames/top100.png','assets/ui/frames/type-fire.png','assets/ui/frames/mon-master.png']) {
+    for(const omitted of ['assets/ui/icons/exp-bag.png','assets/ui/desktop/forest.webp','assets/env/iris/tiles/grass.png','assets/ui/banners/allcaught.jpg','assets/ui/frames/top100.png','assets/ui/frames/type-fire.png','assets/ui/frames/mon-master.png']) {
       await writeFile(manifestPath,JSON.stringify({...payload,files:payload.files.filter(file=>file.name!==omitted)}));
       const result=spawnSync(process.execPath,['scripts/verify-game.ts',root],{encoding:'utf8'});
       assert.notEqual(result.status,0);assert.ok(result.stderr.includes(`Missing required resource: ${omitted}`));

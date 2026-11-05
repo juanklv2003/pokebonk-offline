@@ -80,3 +80,32 @@ test('period changes grant local task rewards while ordinary profiles keep progr
     assert.equal(p.weekly?.claimed.join(','),localSandbox?'1,1,1,1':'0,0,0,0');
   }
 });
+
+test('split menu modules keep profile and reward patches in their owning module',()=>{
+  const menus=main
+    .replace("function backendSymbol(){return new Http('https://api.pokebonk.com');}",'')
+    .replace('class Http{season(){return this.info??seasonFunction(Date.now());}}','function seasonFunction(){return {season:2};} export {seasonFunction as seasonExport,registrySymbol as registryExport};')
+    .replace('await new Application().boot();','')
+    .replace(',scoreExport as scoreAlias','');
+  const application=`import {seasonExport as renamedSeason,registryExport as registry} from './menus.js';
+    function backendSymbol(){return new Http('https://api.pokebonk.com');}
+    class Http{season(){return this.info??renamedSeason(Date.now());}}
+    class Shell{boot(){}} await new Shell().boot();`;
+  const result=patchGame(application,config,'const profile=__PROFILE__;const season=__SEASON__;const score=__SCORE__;function createLocalSandboxBackend(){}',{source:menus,path:'./menus.js'});
+  assert.match(result.main,/import \{createLocalSandboxBackend\} from "\.\/menus.js"/);
+  assert.match(result.main,/window\.__pokebonkLocalApp=new Shell/);
+  assert.ok(result.menus);
+  assert.match(result.menus,/const profile=profileSymbol;const season=seasonFunction;/);
+  assert.match(result.menus,/p\.localSandbox&&p\.quests\[q\.id\]/);
+  assert.match(result.menus,/export \{createLocalSandboxBackend\}/);
+  assert.match(result.menus,/import \{scoreExport as __pokebonkConfig_scoreSymbol\} from "\.\/config.js"/);
+  assert.doesNotMatch(result.main,/const profile=profileSymbol/);
+  assert.throws(()=>patchGame(application,config,'',{source:menus.replace('seasonFunction as seasonExport','seasonFunction as wrongExport'),path:'./menus.js'}),/season/);
+  assert.throws(()=>patchGame(application.replace('seasonExport as renamedSeason,','').replace('function backendSymbol()',"import {seasonExport as renamedSeason} from './unknown.js'; function backendSymbol()"),config,'',{source:menus,path:'./menus.js'}),/unknown season module/);
+});
+
+test('nested achievement cosmetics include banner, avatar and frame rewards',()=>{
+  const awarded=config.replace("reward:50}","reward:50,prizes:[{id:'bg:allcaught'},{id:'tr:pokemaster'},{id:'frame:allcaught'}]}");
+  const result=patchGame(main,awarded,'const unlocked=__COSMETICS__;');
+  for(const id of ['bg:allcaught','tr:pokemaster','frame:allcaught'])assert.ok(result.main.includes(JSON.stringify(id)));
+});

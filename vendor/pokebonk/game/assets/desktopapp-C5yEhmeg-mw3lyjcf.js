@@ -1,0 +1,1 @@
+export{J as DESKTOP_APP,Y as androidAppVersion,X as apkUrl}from"./menus-DpK-VSuW-mw3lyjcf.js";
