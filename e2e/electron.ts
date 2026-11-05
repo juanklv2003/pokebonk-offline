@@ -45,7 +45,6 @@ try {
   await app.evaluate(({app,BrowserWindow})=>{app.focus({steal:true});BrowserWindow.getAllWindows()[0]?.focus();});
   await page.waitForFunction(()=>document.hasFocus());
   await page.waitForFunction(()=>window.__pokebonkLocalApp?.meta?.profile?.localSandbox,null,{timeout:120000});
-  await dismissMenuNotices(page);
   await ensurePlayableMenu(page);
   await checkOfflineFriends(page);
   await page.locator('.dk-btn').click();
