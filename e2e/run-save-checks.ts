@@ -1,10 +1,11 @@
 import type {Page} from 'playwright-core';
 import assert from 'node:assert/strict';
-import {dismissMenuNotices} from './game-checks.ts';
+import {dismissMenuNotices,ensurePlayableMenu} from './game-checks.ts';
 
 // Both restarts terminate the actual native process and reopen its disposable
 // profile. A renderer reload cannot prove a saved run survives process loss.
 export async function checkRunSaves(page:Page,restart:()=>Promise<Page>,focus:()=>Promise<void>) {
+  await ensurePlayableMenu(page);
   const baseline=await page.evaluate(()=>({runs:window.__pokebonkLocalApp.meta.profile.runs.length,hold:window.__pokebonkLocalApp.meta.profile.counters['holdSecs']??0}));
   let previousHold=baseline.hold;
   for(const kind of ['manual','auto'] as const) {

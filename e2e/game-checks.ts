@@ -16,6 +16,20 @@ export async function dismissMenuNotices(page: Page) {
   }
 }
 
+/** Locked fresh saves hide main-menu chrome until a starter exists. */
+export async function ensurePlayableMenu(page: Page) {
+  await page.evaluate(async () => {
+    const app=window.__pokebonkLocalApp;
+    if((app.meta.profile.league?.length??0)===0)await app.backend.chooseStarter(null,4);
+    app.toMenu();
+  });
+  for(const name of ['火球鼠','小鋸鱷','菊草葉'] as const) {
+    const pick=page.getByRole('button',{name,exact:true}).first();
+    if(await pick.isVisible().catch(()=>false)) { await pick.click(); break; }
+  }
+  await page.locator('.mm-nav').waitFor({state:'visible',timeout:120000});
+}
+
 export async function loadAchievementCards(page:Page,limit:number) {
   for(let batch=0;batch<=limit;batch++) {
     const count=await page.locator('.q-card').count();
