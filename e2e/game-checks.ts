@@ -6,13 +6,18 @@ import {writeFile} from 'node:fs/promises';
 
 export async function dismissMenuNotices(page: Page) {
   for (let attempt = 0; attempt < 8; attempt++) {
+    // A suspended-run card sits in the same modal layer as the software-GPU notice.
+    // Leaving it lets the recovery test press 繼續; clicking the notice underneath times out.
+    if (await page.locator('.sv-card').first().isVisible().catch(() => false)) return;
+
     const gpu = page.getByRole('button', {name: '知道了', exact: true}).first();
-    if (await gpu.isVisible().catch(() => false)) await gpu.click();
+    if (await gpu.isVisible().catch(() => false)) await gpu.click({timeout: 3000}).catch(() => {});
 
     const understood = page.locator('.season-modal .btn.green').first();
     if (await understood.isVisible().catch(() => false)) await understood.click();
 
     const seasonModal = page.locator('.season-modal').first();
+    if (await seasonModal.locator('.sv-card').count()) return;
     if (await seasonModal.isVisible().catch(() => false)) {
       const noEsc = await seasonModal.evaluate(el => el.classList.contains('no-esc'));
       if (!noEsc) {
