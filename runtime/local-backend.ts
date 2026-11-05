@@ -165,6 +165,16 @@ class LocalSandboxBackend implements LocalBackendContract {
   }
   async chooseStarter(_account: unknown, species: number) {
     const family = __REGISTRY__.get(species).family ?? __REGISTRY__.root(species).id;
+    const johtoStarters = new Set([152, 155, 158]);
+    if (johtoStarters.has(species)) {
+      this.profile.starterJ = species;
+      this.profile.lastSpecies = species;
+      if (!this.profile.league.includes(species)) this.profile.league.push(species);
+      if (!this.profile.unlocked.includes(family)) this.profile.unlocked.push(family);
+      if (!this.profile.seen.includes(species)) this.profile.seen.push(species);
+      if (!(family in this.profile.captured)) this.profile.captured[family] = Date.now();
+      return this.persist();
+    }
     this.profile.starter = species;
     this.profile.lastSpecies = species;
     if (!this.profile.league.includes(species)) this.profile.league.push(species);

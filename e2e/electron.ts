@@ -5,7 +5,7 @@ import {readFile,mkdtemp,rm,mkdir,writeFile} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import assert from 'node:assert/strict';
-import {checkGame,dismissMenuNotices} from './game-checks.ts';
+import {checkGame,dismissMenuNotices,ensurePlayableMenu} from './game-checks.ts';
 import {focusNativeInput} from './native-input-focus.ts';
 import {checkOfflineFriends} from './friends-checks.ts';
 import {checkRunSaves,checkCorruptRecovery} from './run-save-checks.ts';
@@ -46,6 +46,7 @@ try {
   await page.waitForFunction(()=>document.hasFocus());
   await page.waitForFunction(()=>window.__pokebonkLocalApp?.meta?.profile?.localSandbox,null,{timeout:120000});
   await dismissMenuNotices(page);
+  await ensurePlayableMenu(page);
   await checkOfflineFriends(page);
   await page.locator('.dk-btn').click();
   await page.locator('.dk-card .dk-ic svg').first().waitFor({state:'visible'});
@@ -77,7 +78,8 @@ try {
     const next=await app.firstWindow();observe(next);
     if(ready){
       await next.waitForFunction(()=>window.__pokebonkLocalApp?.meta?.profile?.localSandbox,null,{timeout:120000});
-      await next.locator('.mm-nav').waitFor({state:'visible',timeout:30000});
+      await dismissMenuNotices(next);
+      await ensurePlayableMenu(next);
     }
     return next;
   };

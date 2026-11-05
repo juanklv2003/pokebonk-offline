@@ -16,6 +16,18 @@ export async function dismissMenuNotices(page: Page) {
   }
 }
 
+/** Locked fresh saves hide main-menu chrome until a starter exists. */
+export async function ensurePlayableMenu(page: Page) {
+  await page.evaluate(async () => {
+    const app = window.__pokebonkLocalApp;
+    const meta = app.meta as typeof app.meta & { chooseStarter(id: number): Promise<void> };
+    if (!meta.profile.starter) await meta.chooseStarter(4);
+    if (!meta.profile.starterJ) await meta.chooseStarter(155);
+    app.toMenu();
+  });
+  await page.locator('.mm-nav').waitFor({state:'visible',timeout:120000});
+}
+
 export async function loadAchievementCards(page:Page,limit:number) {
   for(let batch=0;batch<=limit;batch++) {
     const count=await page.locator('.q-card').count();

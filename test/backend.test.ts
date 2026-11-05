@@ -196,6 +196,9 @@ test('Johto profiles unlock their starter and forms while preserving an existing
   storage.set('pokebonk.local.profile.v2',JSON.stringify(fresh));
   const restored=await backend(storage,undefined,true).loadProfile();
   assert.equal(restored.starterJ,155);assert.equal(restored.lastSpecies,150);assert.equal(restored.counters['kills'],23);
+  const johtoStorage=new Map<string,string>(),johtoApi=backend(johtoStorage,undefined,true);
+  await johtoApi.loadProfile();await johtoApi.chooseStarter(null,4);const picked=await johtoApi.chooseStarter(null,155);
+  assert.equal(picked.starter,4);assert.equal(picked.starterJ,155);
   for(const invalid of [{starterJ:'155'},{johtoForms:['152']}]){
     const raw=JSON.stringify(invalid),bad=new Map([['pokebonk.local.profile.v2',raw]]);
     await assert.rejects(backend(bad,undefined,true).loadProfile());
