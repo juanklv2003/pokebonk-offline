@@ -94,7 +94,7 @@ class LocalSandboxBackend implements LocalBackendContract {
     const profile: LocalProfile = {
       ...merged,
       settings: {...localObject(defaults['settings'] ?? {}), ...localObject(saved['settings'] ?? {})},
-      league:numbers('league'),unlocked:numbers('unlocked'),seen:numbers('seen'),forms:numbers('forms'),shinies:numbers('shinies'),classics:numbers('classics'),johtoForms:numbers('johtoForms'),
+      league:numbers('league'),unlocked:numbers('unlocked'),seen:numbers('seen'),forms:numbers('forms'),shinies:numbers('shinies'),classics:numbers('classics'),
       research:counts('research'),lab:counts('lab'),biomes:counts('biomes'),bag:counts('bag'),medals:counts('medals'),quests:counts('quests'),counters:counts('counters'),wins,captured:counts('captured'),
       treasures:Object.fromEntries(Object.entries(localObject(merged['treasures']??{})).map(([id,value])=>{
         const wheel=localObject(value);
@@ -104,6 +104,7 @@ class LocalSandboxBackend implements LocalBackendContract {
       runs:localList(merged['runs'] ?? [], entry => {const run=localObject(entry);return {...run,id:localString(run['id'])};}),
       stardust:localNumber(merged['stardust'] ?? 0),totalStardust:localNumber(merged['totalStardust'] ?? 0),
     };
+    if (merged['johtoForms'] !== undefined) profile.johtoForms = numbers('johtoForms');
     for (const key of ['starter','starterJ','lastSpecies'] as const) if (merged[key] !== undefined) profile[key] = localNumber(merged[key]);
     for (const key of ['daily','weekly'] as const) if (merged[key] !== undefined) {
       const period=localObject(merged[key]);
@@ -131,7 +132,7 @@ class LocalSandboxBackend implements LocalBackendContract {
       profile.itemsOwned = []; profile.quests = {}; profile.counters = {}; profile.wins = {};
       profile.captured = {}; profile.treasures = {}; profile.runs = [];
       profile.stardust = 0; profile.totalStardust = 0; profile.bonk = 0; profile.medals = {};
-      delete profile.starter; delete profile.lastSpecies;
+      delete profile.starter; delete profile.starterJ; delete profile.johtoForms; delete profile.lastSpecies;
     }
     return profile;
   }

@@ -15,4 +15,8 @@ android/app/src/main/res/drawable-nodpi/pokebonk_logo.png
 *.key
 SESSION.md
 evidence/
+# Local scratch / notes (not part of the repo)
+2_validate _ prepare.txt
+4_build _ prepare.txt
+cambios-android-pokebonk.patch
 .DS_Store

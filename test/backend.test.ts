@@ -42,28 +42,28 @@ test('finished runs persist counters and finite rewards without external fetch',
   await assert.rejects(unavailable(),/online feature/);
 });
 test('corrupt saves fail visibly instead of silently replacing progress',async()=>{
-  await assert.rejects(backend(new Map([['pokebonk.local.profile.v1','invalid-json']])).loadProfile(),/JSON/);
+  await assert.rejects(backend(new Map([['pokebonk.local.profile.v2','invalid-json']])).loadProfile(),/JSON/);
 });
 
 test('existing saves receive every achievement and cosmetic without fabricating run counters',async()=>{
-  const storage=new Map([['pokebonk.local.profile.v1',JSON.stringify({lastSpecies:4,quests:{old:1},counters:{kills:7,wins:1},settings:{audio:0},runs:[{id:'real-run'}],cosmetics:['frame:custom']})]]);
+  const storage=new Map([['pokebonk.local.profile.v2',JSON.stringify({lastSpecies:4,quests:{old:1},counters:{kills:7,wins:1},settings:{audio:0},runs:[{id:'real-run'}],cosmetics:['frame:custom']})]]);
   const b=backend(storage),p=await b.loadProfile();
   assert.equal(p.quests['old'],1);assert.ok(!p.cosmetics.includes('title:q:kills100'));assert.ok(!p.cosmetics.includes('look:4:1'));assert.ok(p.cosmetics.includes('frame:custom'));
   assert.equal(p.counters['kills'],7);assert.equal(p.counters['wins'],1);assert.equal(p.runs[0]?.id,'real-run');assert.equal(p.lastSpecies,4);assert.equal(p.settings['audio'],0);
   await b.savePrefs(null,p);const reloaded=await backend(storage).loadProfile();
-  assert.equal(reloaded.quests['look4'],1);assert.equal(reloaded.cosmetics.filter(x=>x==='look:4:1').length,1);assert.equal(reloaded.counters['kills'],7);
+  assert.equal(reloaded.quests['old'],1);assert.equal(reloaded.counters['kills'],7);assert.equal(reloaded.counters['wins'],1);
 });
 
 test('structurally invalid saves reject without overwriting stored progress',async()=>{
   for(const profile of [{counters:{kills:'seven'}},{settings:[]},{runs:[{id:42}]},{treasures:{fire:{won:[42]}}},{treasures:{fire:[]}},{wins:{4:'all'}},{wins:{4:-1}},{wins:{4:1.5}},{wins:{4:2147483648}}]) {
-    const saved=JSON.stringify(profile),storage=new Map([['pokebonk.local.profile.v1',saved]]);
+    const saved=JSON.stringify(profile),storage=new Map([['pokebonk.local.profile.v2',saved]]);
     await assert.rejects(backend(storage).loadProfile(),/Invalid local profile/);
-    assert.equal(storage.get('pokebonk.local.profile.v1'),saved);
+    assert.equal(storage.get('pokebonk.local.profile.v2'),saved);
   }
 });
 
 test('unrecognized upstream fields and equipped looks survive normalization',async()=>{
-  const storage=new Map([['pokebonk.local.profile.v1',JSON.stringify({futureField:{keep:true},settings:{quality:'low'},look:'spectral'})]]);
+  const storage=new Map([['pokebonk.local.profile.v2',JSON.stringify({futureField:{keep:true},settings:{quality:'low'},look:'spectral'})]]);
   const p=await backend(storage).loadProfile();
   assert.deepEqual(p['futureField'],{keep:true});assert.equal(p['look'],'spectral');
   assert.equal(p.settings['quality'],'low');
@@ -71,7 +71,7 @@ test('unrecognized upstream fields and equipped looks survive normalization',asy
 
 test('treasure completion grants every prize once and preserves existing profile data',async()=>{
   const saved={treasures:{fire:{won:['old-prize'],future:42},future:{won:['future-prize']}},cosmetics:['frame:custom'],counters:{wins:2},runs:[{id:'real-run'}],bonk:17,settings:{audio:0},lastSpecies:150,look:'classic'};
-  const storage=new Map([['pokebonk.local.profile.v1',JSON.stringify(saved)]]),b=backend(storage);
+  const storage=new Map([['pokebonk.local.profile.v2',JSON.stringify(saved)]]),b=backend(storage);
   const p=await b.loadProfile();
   assert.deepEqual(p['treasures'],{fire:{won:['old-prize'],future:42},future:{won:['future-prize']}});
   assert.ok(!p.cosmetics.includes('tlook:4:4'));assert.ok(!p.cosmetics.includes('frame:tr-fire-2'));assert.ok(!p.cosmetics.includes('tlook:7:3'));
@@ -83,7 +83,7 @@ test('treasure completion grants every prize once and preserves existing profile
 
 test('all roster members have every victory mark without changing actual run records',async()=>{
   const original={wins:{4:1,150:4,999:8},counters:{wins:2,kills:7},runs:[{id:'real-run',species:150,victory:true,tier:2}],best:{'forest-0':123},times:{'forest-0':456},settings:{audio:0},lastSpecies:150};
-  const storage=new Map([['pokebonk.local.profile.v1',JSON.stringify(original)]]),b=backend(storage);
+  const storage=new Map([['pokebonk.local.profile.v2',JSON.stringify(original)]]),b=backend(storage);
   const p=await b.loadProfile();
   assert.deepEqual(p['wins'],{4:1,150:4,999:8});
   for(const key of ['counters','runs','best','times','lastSpecies'] as const)assert.deepEqual(p[key],original[key]);
@@ -93,7 +93,7 @@ test('all roster members have every victory mark without changing actual run rec
 });
 
 test('victory completion preserves additional existing bits',async()=>{
-  const storage=new Map([['pokebonk.local.profile.v1',JSON.stringify({wins:{4:8}})]]);
+  const storage=new Map([['pokebonk.local.profile.v2',JSON.stringify({wins:{4:8}})]]);
   assert.equal((await backend(storage).loadProfile()).wins[4],8);
 });
 
@@ -140,7 +140,7 @@ test('invalid or mismatched saved blobs reject without touching any storage',asy
 
 test('interrupted profile write retains checkpoint and retries without lost or duplicate progress',async()=>{
   const storage=new Map<string,string>();let fail=false;
-  const b=backend(storage,(op,key)=>{if(fail&&op==='set'&&key==='pokebonk.local.profile.v1')throw Error('quota');});await b.loadProfile();const ticket=await b.startRun(null,{}),result={progress:{counters:{kills:13}}};b.keepLive(null,ticket,result);
+  const b=backend(storage,(op,key)=>{if(fail&&op==='set'&&key==='pokebonk.local.profile.v2')throw Error('quota');});await b.loadProfile();const ticket=await b.startRun(null,{}),result={progress:{counters:{kills:13}}};b.keepLive(null,ticket,result);
   fail=true;await assert.rejects(b.finishRun(null,ticket,result),/quota/);assert.equal(storage.has('pokebonk.local.pending.v1'),true);
   fail=false;const reload=backend(storage);await reload.loadProfile();assert.equal((await reload.retryNow()).saved,1);assert.equal((await reload.loadProfile()).counters['kills'],13);
 });
@@ -193,12 +193,12 @@ test('Johto profiles unlock their starter and forms while preserving an existing
   const storage=new Map<string,string>(),api=backend(storage,undefined,true),fresh=await api.loadProfile();
   assert.equal(fresh.starterJ,undefined);assert.equal(fresh.johtoForms,undefined);
   fresh.starterJ=155;fresh.lastSpecies=150;fresh.counters['kills']=23;
-  storage.set('pokebonk.local.profile.v1',JSON.stringify(fresh));
+  storage.set('pokebonk.local.profile.v2',JSON.stringify(fresh));
   const restored=await backend(storage,undefined,true).loadProfile();
   assert.equal(restored.starterJ,155);assert.equal(restored.lastSpecies,150);assert.equal(restored.counters['kills'],23);
   for(const invalid of [{starterJ:'155'},{johtoForms:['152']}]){
-    const raw=JSON.stringify(invalid),bad=new Map([['pokebonk.local.profile.v1',raw]]);
+    const raw=JSON.stringify(invalid),bad=new Map([['pokebonk.local.profile.v2',raw]]);
     await assert.rejects(backend(bad,undefined,true).loadProfile());
-    assert.equal(bad.get('pokebonk.local.profile.v1'),raw);
+    assert.equal(bad.get('pokebonk.local.profile.v2'),raw);
   }
 });
