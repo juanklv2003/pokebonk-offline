@@ -168,10 +168,7 @@ export async function checkGame(page: Page,metadata: BuildMetadata,label: string
   await dismissMenuNotices(page);
   await page.getByRole('button',{name:/^開始遊戲/}).click();
   await page.locator('.ls-tile').first().waitFor({state:'visible'});
-  const unlocked=await page.evaluate(()=>window.__pokebonkLocalApp.meta.profile.league.length);
-  const tiles=await page.locator('.ls-tile').count();
-  if(tiles===metadata.league)assert.ok((await page.locator('.ls-tile').evaluateAll(tiles=>tiles.map(tile=>tile.querySelectorAll('.ls-wins i').length))).every(count=>count===3));
-  else assert.equal(tiles,unlocked);
+  assert.equal(await page.locator('.ls-tile').count(),metadata.league);
   await page.getByRole('button',{name:'超夢',exact:true}).click();
   assert.equal(await page.locator('.ls-won').count(),3);
   assert.equal(await page.locator('.ls-won.on').count(),0);
