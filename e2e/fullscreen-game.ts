@@ -4,7 +4,7 @@ import {mkdtemp,rm,mkdir,writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import assert from 'node:assert/strict';
-import {dismissMenuNotices,ensurePlayableMenu} from './game-checks.ts';
+import {ensurePlayableMenu} from './game-checks.ts';
 
 const userData=await mkdtemp(path.join(os.tmpdir(),'pokebonk-fullscreen-game-'));
 const game=path.resolve(process.argv[2]??'build/game');
@@ -27,7 +27,6 @@ try {
   await page.waitForFunction(()=>window.__pokebonkLocalApp?.meta?.profile?.localSandbox||Reflect.get(window,'__pokebonkSmokeBootState')!=='pending',null,{timeout:120000});
   assert.equal(await page.evaluate(()=>!!window.__pokebonkLocalApp?.meta?.profile?.localSandbox),true,'Upstream entry completed without a local profile');
   await app.evaluate(({app,BrowserWindow})=>{app.focus({steal:true});BrowserWindow.getAllWindows()[0]?.focus();});
-  await dismissMenuNotices(page);
   await ensurePlayableMenu(page);
   const toggle=page.locator('.fs-btn');
   await toggle.waitFor({state:'visible',timeout:120000});
