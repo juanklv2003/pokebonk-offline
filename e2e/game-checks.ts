@@ -5,14 +5,37 @@ import {record,text} from '../types/data.ts';
 import {writeFile} from 'node:fs/promises';
 
 export async function dismissMenuNotices(page: Page) {
-  for(let attempt=0;attempt<3;attempt++) {
-    const gpu=page.getByRole('button',{name:'知道了',exact:true}).first();
-    if(await gpu.isVisible().catch(()=>false))await gpu.click();
-    const tour=page.getByRole('button',{name:/^跳過(?:指南)?/}).first();
-    if(await tour.waitFor({state:'visible',timeout:2000}).then(()=>true,()=>false)) {
-      await page.keyboard.press('Escape');
-      await tour.waitFor({state:'hidden'});
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const gpu = page.getByRole('button', {name: '知道了', exact: true}).first();
+    if (await gpu.isVisible().catch(() => false)) await gpu.click();
+
+    const understood = page.locator('.season-modal .btn.green').first();
+    if (await understood.isVisible().catch(() => false)) await understood.click();
+
+    const seasonModal = page.locator('.season-modal').first();
+    if (await seasonModal.isVisible().catch(() => false)) {
+      const noEsc = await seasonModal.evaluate(el => el.classList.contains('no-esc'));
+      if (!noEsc) {
+        await page.keyboard.press('Escape');
+        await seasonModal.waitFor({state: 'hidden', timeout: 2000}).catch(() => {});
+      }
+      if (await seasonModal.isVisible().catch(() => false)) {
+        await seasonModal.click({position: {x: 8, y: 8}, force: true});
+        await seasonModal.waitFor({state: 'hidden', timeout: 2000}).catch(() => {});
+      }
     }
+
+    const tour = page.getByRole('button', {name: /^跳過(?:指南)?/}).first();
+    if (await tour.waitFor({state: 'visible', timeout: 500}).then(() => true, () => false)) {
+      await page.keyboard.press('Escape');
+      await tour.waitFor({state: 'hidden', timeout: 5000}).catch(() => {});
+    }
+
+    const guideSkip = page.locator('.g-skip, .tour-skip').first();
+    if (await guideSkip.isVisible().catch(() => false)) await guideSkip.click();
+
+    const blocking = page.locator('.season-modal, .tour, .pb-guide').first();
+    if (!(await blocking.isVisible().catch(() => false))) break;
   }
 }
 
@@ -26,6 +49,7 @@ export async function ensurePlayableMenu(page: Page) {
     app.toMenu();
   });
   await page.locator('.mm-nav').waitFor({state:'visible',timeout:120000});
+  await dismissMenuNotices(page);
 }
 
 export async function loadAchievementCards(page:Page,limit:number) {
