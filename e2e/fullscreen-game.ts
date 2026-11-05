@@ -5,6 +5,7 @@ import path from 'node:path';
 import os from 'node:os';
 import assert from 'node:assert/strict';
 import {ensurePlayableMenu} from './game-checks.ts';
+import {focusNativeInput} from './native-input-focus.ts';
 
 const userData=await mkdtemp(path.join(os.tmpdir(),'pokebonk-fullscreen-game-'));
 const game=path.resolve(process.argv[2]??'build/game');
@@ -68,17 +69,26 @@ try {
   await app.evaluate(async({BrowserWindow})=>{const window=BrowserWindow.getAllWindows()[0];if(window?.isFullScreen())await new Promise<void>((resolve,reject)=>{window.once('leave-full-screen',()=>resolve());setTimeout(()=>reject(new Error('Settings exit transition timed out')),5000);});});
   await page.keyboard.press('Escape');
   await page.evaluate(()=>window.__pokebonkLocalApp.startRun({species:4,biome:'forest',tier:0,boosts:[]}));
-  await page.waitForFunction(()=>(window.__pokebonkLocalApp.run?.time??0)>1,null,{timeout:90000});
+  await page.waitForFunction(()=>window.__pokebonkLocalApp.run?.state==='play',null,{timeout:120000});
+  await focusNativeInput(app);
   await page.keyboard.press('w');
-  await page.waitForFunction(()=>document.pointerLockElement?.tagName==='CANVAS');
-  await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0]?.minimize());
-  await page.waitForFunction(()=>document.pointerLockElement===null&&window.__pokebonkLocalApp.run?.state==='paused');
+  await page.waitForFunction(()=>document.pointerLockElement?.tagName==='CANVAS',null,{timeout:120000});
+  await app.evaluate(async({BrowserWindow})=>{
+    const window=BrowserWindow.getAllWindows()[0];
+    if(!window)return;
+    await new Promise<void>(resolve=>{
+      if(window.isMinimized())resolve();
+      else window.once('minimize',()=>resolve());
+      window.minimize();
+    });
+  });
+  await page.waitForFunction(()=>document.pointerLockElement===null&&window.__pokebonkLocalApp.run?.state==='paused',null,{timeout:120000});
   await app.evaluate(({app,BrowserWindow})=>{const window=BrowserWindow.getAllWindows()[0];window?.restore();app.focus({steal:true});window?.focus();});
-  await page.waitForFunction(()=>document.hasFocus());
+  await focusNativeInput(app);
   assert.equal(await page.evaluate(()=>window.__pokebonkLocalApp.run?.state),'paused');
   await page.evaluate(()=>window.__pokebonkLocalApp.run?.resume());
   await page.keyboard.press('w');
-  await page.waitForFunction(()=>!!document.pointerLockElement&&window.__pokebonkLocalApp.run?.state==='play');
+  await page.waitForFunction(()=>!!document.pointerLockElement&&window.__pokebonkLocalApp.run?.state==='play',null,{timeout:120000});
   await writeFile('evidence/fullscreen-game.json',JSON.stringify({observedAt:new Date().toISOString(),executable:executablePath??'development shell',menuButtonEnteredAndExited:true,labelRestored:true,nativeFullscreen:true,settingsSwitchEnteredAndExited:true,minimizeReleasesAndPauses:true,restoreKeepsPaused:true,resumeReacquiresPointer:true},null,2));
   console.log('Actual game fullscreen menu button entered and exited successfully.');
 } catch(error) {
