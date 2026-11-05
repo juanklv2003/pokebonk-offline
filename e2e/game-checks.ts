@@ -50,6 +50,26 @@ export async function ensurePlayableMenu(page: Page) {
   });
   await page.locator('.mm-nav').waitFor({state:'visible',timeout:120000});
   await dismissMenuNotices(page);
+  // Dismissal can write pb.tours before profile.settings.tours is saved; the delayed
+  // trainer guide also mutates storage after menu paint. Settle both before other e2e.
+  await page.evaluate(async () => {
+    const app = window.__pokebonkLocalApp;
+    const settings = app.meta.profile.settings as {tours?: string};
+    const existing = settings.tours ?? '';
+    if (!existing.split(',').filter(Boolean).includes('gd')) {
+      settings.tours = existing ? `${existing},gd` : 'gd';
+    }
+    try { localStorage.setItem('pb.tours', settings.tours ?? ''); } catch {}
+    await app.meta.save();
+  });
+  await page.waitForFunction(
+    () => {
+      const tours = window.__pokebonkLocalApp?.meta?.profile?.settings?.tours ?? '';
+      return tours.includes('gd') && !document.querySelector('.pb-guide');
+    },
+    null,
+    {timeout: 30000},
+  );
 }
 
 export async function loadAchievementCards(page:Page,limit:number) {
