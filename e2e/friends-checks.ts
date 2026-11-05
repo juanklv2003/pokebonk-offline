@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import type {Page} from 'playwright-core';
+import {syncPersistedTourMarkers} from './game-checks.ts';
 
 export async function checkOfflineFriends(page:Page):Promise<void> {
+  await syncPersistedTourMarkers(page);
   const storage=await page.evaluate(()=>JSON.stringify({...localStorage}));
   await page.getByRole('button',{name:'好友',exact:true}).click();
   await page.getByRole('heading',{name:'好友功能僅適用線上版',exact:true}).waitFor();

@@ -39,6 +39,38 @@ export async function dismissMenuNotices(page: Page) {
   }
 }
 
+export async function syncPersistedTourMarkers(page: Page) {
+  await page.evaluate(async () => {
+    const app = window.__pokebonkLocalApp;
+    const settings = app.meta.profile.settings as Record<string, unknown>;
+    const pb = localStorage.getItem('pb.tours') ?? '';
+    const existing = typeof settings['tours'] === 'string' ? settings['tours'] : '';
+    const merged = [pb, existing].filter(Boolean).join(',');
+    const parts = [...new Set(merged.split(',').map(part => part.trim()).filter(Boolean))];
+    if (!parts.includes('gd')) parts.push('gd');
+    const withGuide = parts.join(',');
+    settings['tours'] = withGuide;
+    try { localStorage.setItem('pb.tours', withGuide); } catch {}
+    // meta.save is not the persistence path; friends navigation later flushes
+    // settings.tours through savePrefs and would otherwise change storage mid-check.
+    await app.backend.savePrefs(null, app.meta.profile);
+  });
+  await page.waitForFunction(
+    () => {
+      if (document.querySelector('.pb-guide')) return false;
+      const pb = localStorage.getItem('pb.tours') ?? '';
+      const raw = localStorage.getItem('pokebonk.local.profile.v2');
+      if (!raw) return !pb;
+      try {
+        const tours = (JSON.parse(raw) as {settings?: {tours?: string}}).settings?.tours ?? '';
+        return tours.includes('gd') && (!pb || tours === pb);
+      } catch { return false; }
+    },
+    null,
+    {timeout: 30000},
+  );
+}
+
 /** Locked fresh saves hide main-menu chrome until a starter exists. */
 export async function ensurePlayableMenu(page: Page) {
   await page.evaluate(async () => {
@@ -50,28 +82,7 @@ export async function ensurePlayableMenu(page: Page) {
   });
   await page.locator('.mm-nav').waitFor({state:'visible',timeout:120000});
   await dismissMenuNotices(page);
-  // Dismissal can write pb.tours before profile.settings.tours is saved; the delayed
-  // trainer guide also mutates storage after menu paint. Settle both before other e2e.
-  await page.evaluate(async () => {
-    const app = window.__pokebonkLocalApp;
-    const meta = app.meta as typeof app.meta & {save(): Promise<void>};
-    const settings = meta.profile.settings as Record<string, unknown>;
-    const existing = typeof settings['tours'] === 'string' ? settings['tours'] : '';
-    if (!existing.split(',').filter(Boolean).includes('gd')) {
-      settings['tours'] = existing ? `${existing},gd` : 'gd';
-    }
-    try { localStorage.setItem('pb.tours', String(settings['tours'] ?? '')); } catch {}
-    await meta.save();
-  });
-  await page.waitForFunction(
-    () => {
-      const settings = window.__pokebonkLocalApp?.meta?.profile?.settings as Record<string, unknown> | undefined;
-      const tours = typeof settings?.['tours'] === 'string' ? settings['tours'] : '';
-      return tours.includes('gd') && !document.querySelector('.pb-guide');
-    },
-    null,
-    {timeout: 30000},
-  );
+  await syncPersistedTourMarkers(page);
 }
 
 export async function loadAchievementCards(page:Page,limit:number) {
