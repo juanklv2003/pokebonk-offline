@@ -77,8 +77,11 @@ try {
     const next=await app.firstWindow();observe(next);
     if(ready){
       await next.waitForFunction(()=>window.__pokebonkLocalApp?.meta?.profile?.localSandbox,null,{timeout:120000});
-      await dismissMenuNotices(next);
-      await ensurePlayableMenu(next);
+      const recovering=await next.locator('.sv-card').isVisible().catch(()=>false);
+      if(!recovering){
+        await dismissMenuNotices(next);
+        await ensurePlayableMenu(next);
+      }
     }
     return next;
   };
