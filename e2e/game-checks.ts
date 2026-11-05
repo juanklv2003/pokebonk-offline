@@ -19,14 +19,12 @@ export async function dismissMenuNotices(page: Page) {
 /** Locked fresh saves hide main-menu chrome until a starter exists. */
 export async function ensurePlayableMenu(page: Page) {
   await page.evaluate(async () => {
-    const app=window.__pokebonkLocalApp;
-    if((app.meta.profile.league?.length??0)===0)await app.backend.chooseStarter(null,4);
+    const app = window.__pokebonkLocalApp;
+    const meta = app.meta as typeof app.meta & { chooseStarter(id: number): Promise<void> };
+    if (!meta.profile.starter) await meta.chooseStarter(4);
+    if (!meta.profile.starterJ) await meta.chooseStarter(155);
     app.toMenu();
   });
-  for(const name of ['火球鼠','小鋸鱷','菊草葉'] as const) {
-    const pick=page.getByRole('button',{name,exact:true}).first();
-    if(await pick.isVisible().catch(()=>false)) { await pick.click(); break; }
-  }
   await page.locator('.mm-nav').waitFor({state:'visible',timeout:120000});
 }
 
