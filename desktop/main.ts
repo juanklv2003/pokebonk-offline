@@ -264,6 +264,16 @@ function createWindow() {
     }
   });
   window.once("ready-to-show", () => window.show());
+  // Upstream pauses a playing run when a touch layout is hidden, or when pointer
+  // lock ends after it has been held. A minimized desktop window often does neither
+  // (Linux compositors keep the document visible, and a fresh lock counts as a flicker).
+  window.on("minimize", () => {
+    if (window.isDestroyed()) return;
+    void window.webContents.executeJavaScript(`(() => {
+      const run = window.__pokebonkLocalApp?.run;
+      if (run?.state === "play") run.pause();
+    })()`, true).catch(error => console.error("Failed to pause minimized run", error));
+  });
   void window.loadURL(`${APP_SCHEME}://${APP_HOST}/index.html`);
   return window;
 }

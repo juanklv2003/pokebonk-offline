@@ -73,6 +73,8 @@ try {
   await focusNativeInput(app);
   await page.keyboard.press('w');
   await page.waitForFunction(()=>document.pointerLockElement?.tagName==='CANVAS',null,{timeout:120000});
+  // A lock held for under 700ms is a flicker: releasing it does not pause the run.
+  await page.evaluate(()=>new Promise(resolve=>setTimeout(resolve,800)));
   await app.evaluate(async({BrowserWindow})=>{
     const window=BrowserWindow.getAllWindows()[0];
     if(!window)return;
