@@ -19,6 +19,10 @@ export interface Profile extends Record<string, unknown> {
   quests: Record<string, number>;
   counters: Record<string, number>;
   wins: Record<string, number>;
+  captured: Record<string, number>;
+  bonk?: number;
+  shop?: { day: number; n: Record<string, number> };
+  dailyStreak?: { last: number; n: number };
   treasures: Record<string, Record<string, unknown> & {won:string[]}>;
   cosmetics: string[];
   itemsOff: string[];
@@ -36,7 +40,14 @@ export interface RunResult extends Record<string, unknown> {
   victory?: boolean;
   progress?: {
     counters?: Record<string, number>;
+    research?: Record<string, number>;
     seen?: number[]; forms?: number[]; league?: number[]; shinies?: number[]; classics?: number[];
   };
 }
-export type ProfileAction = {k:'archive';key:string;off:boolean} | {k:'quest';id:string};
+export type ProfileAction =
+  | {k:'archive';key:string;off:boolean}
+  | {k:'quest';id:string}
+  | {k:'task';period:'daily'|'weekly';slot:number}
+  | {k:'lab';id:string;lv:number}
+  | {k:'item';key:string}
+  | {k:'shop';id:string;n:number};
