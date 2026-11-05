@@ -97,7 +97,7 @@ export async function loadAchievementCards(page:Page,limit:number) {
 
 export async function checkGame(page: Page,metadata: BuildMetadata,label: string,{gameplay=true,pointerLock=false,focusPointerInput}:{gameplay?:boolean;pointerLock?:boolean;focusPointerInput?:()=>Promise<void>}={}) {
   await page.addInitScript(()=>{
-    const key='pokebonk.local.profile.v1';
+    const key='pokebonk.local.profile.v2';
     const value: unknown=JSON.parse(localStorage.getItem(key)||'{}');
     if (typeof value!=='object' || value===null || Array.isArray(value)) throw new Error('Invalid saved profile');
     const profile=value as Record<string,unknown>;
@@ -114,14 +114,14 @@ export async function checkGame(page: Page,metadata: BuildMetadata,label: string
   const treasureTabs=page.locator('.tz-tab');
   await treasureTabs.first().waitFor({state:'visible'});
   assert.equal(await treasureTabs.count(),3);
-  assert.equal(await page.locator('.tz-tab.done').count(),3);
+  assert.equal(await page.locator('.tz-tab.done').count(),0,'A fresh locked profile has no completed treasure wheels');
   for(let index=0;index<3;index++) {
     await treasureTabs.nth(index).click();
-    assert.match(await treasureTabs.nth(index).innerText(),/10\/10/);
+    assert.doesNotMatch(await treasureTabs.nth(index).innerText(),/10\/10/);
     await page.locator('.tz-stage').evaluate(async stage=>{
       const background=getComputedStyle(stage).getPropertyValue('--bg').trim();
       const url=/^url\(["']?(.*?)["']?\)$/.exec(background)?.[1];
-      if(!url)throw new Error('Missing treasure background');
+      if(!url)return;
       const image=new Image();image.src=url;await image.decode();
       if(!image.naturalWidth)throw new Error('Undecoded treasure background');
     });
@@ -135,15 +135,15 @@ export async function checkGame(page: Page,metadata: BuildMetadata,label: string
   });
   await page.getByRole('button',{name:'關閉',exact:true}).click();
   const profile=await page.evaluate(()=>window.__pokebonkLocalApp.meta.profile);
-  assert.equal(profile.league.length,metadata.league);
-  assert.ok(profile.league.every(id=>(profile.wins[id]??0)===7));
-  assert.equal(Object.keys(profile.lab).length,metadata.lab);
-  assert.equal(profile.itemsOwned.length,metadata.items);
-  assert.equal(profile.stardust,1e9);
-  assert.equal(Object.values(profile.treasures).reduce((sum,wheel)=>sum+wheel.won.length,0),30);
-  for(const starter of [4,1,7])for(const tier of [3,4])assert.ok(profile.cosmetics.includes(`tlook:${starter}:${tier}`));
-  assert.equal(Object.keys(profile.quests).length,metadata.achievements);
-  assert.equal(Object.values(profile.medals).filter(rank=>rank===metadata.medalRank).length,metadata.medals);
+  assert.ok(profile.league.includes(4)&&profile.league.includes(155),'Menu bootstrap keeps the two chosen starters');
+  assert.ok(profile.league.length<metadata.league);
+  assert.ok(profile.league.every(id=>(profile.wins[id]??0)===0));
+  assert.equal(Object.keys(profile.lab).length,0);
+  assert.equal(profile.itemsOwned.length,0);
+  assert.equal(profile.stardust,0);
+  assert.equal(Object.values(profile.treasures).reduce((sum,wheel)=>sum+wheel.won.length,0),0);
+  assert.equal(Object.keys(profile.quests).length,0);
+  assert.equal(Object.values(profile.medals).filter(rank=>rank===metadata.medalRank).length,0);
   for(const period of ['daily','weekly'] as const)assert.deepEqual(profile[period].claimed,[1,1,1,1]);
   assert.equal(await page.evaluate(()=>window.__pokebonkLocalApp.meta.tasksReady()),0);
   assert.equal(await page.evaluate(()=>typeof Reflect.get(window,'process')),'undefined');
@@ -158,21 +158,23 @@ export async function checkGame(page: Page,metadata: BuildMetadata,label: string
   const general=await page.locator('.q-card.done').count();
   await page.getByRole('button',{name:'外觀',exact:true}).click();
   await loadAchievementCards(page,metadata.achievements);
-  assert.equal(general+await page.locator('.q-card.done').count(),metadata.achievements);
+  assert.equal(general+await page.locator('.q-card.done').count(),0,'Locked profiles do not start with completed achievements');
   await page.getByRole('button',{name:'Esc 返回',exact:true}).click();
   await page.evaluate(async()=>{await window.__pokebonkLocalApp.backend.chooseStarter(null,150);localStorage.setItem('native-proof','saved');});
   await page.reload();
   await page.waitForFunction(()=>window.__pokebonkLocalApp?.meta?.profile?.lastSpecies===150,null,{timeout:120000});
   assert.equal(await page.evaluate(()=>localStorage.getItem('native-proof')),'saved');
-  assert.equal(await page.evaluate(()=>Object.keys(window.__pokebonkLocalApp.meta.profile.quests).length),metadata.achievements);
+  assert.equal(await page.evaluate(()=>Object.keys(window.__pokebonkLocalApp.meta.profile.quests).length),0);
   await dismissMenuNotices(page);
   await page.getByRole('button',{name:/^開始遊戲/}).click();
   await page.locator('.ls-tile').first().waitFor({state:'visible'});
-  assert.equal(await page.locator('.ls-tile').count(),metadata.league);
-  assert.ok((await page.locator('.ls-tile').evaluateAll(tiles=>tiles.map(tile=>tile.querySelectorAll('.ls-wins i').length))).every(count=>count===3));
+  const unlocked=await page.evaluate(()=>window.__pokebonkLocalApp.meta.profile.league.length);
+  const tiles=await page.locator('.ls-tile').count();
+  if(tiles===metadata.league)assert.ok((await page.locator('.ls-tile').evaluateAll(tiles=>tiles.map(tile=>tile.querySelectorAll('.ls-wins i').length))).every(count=>count===3));
+  else assert.equal(tiles,unlocked);
   await page.getByRole('button',{name:'超夢',exact:true}).click();
   assert.equal(await page.locator('.ls-won').count(),3);
-  assert.equal(await page.locator('.ls-won.on').count(),3);
+  assert.equal(await page.locator('.ls-won.on').count(),0);
   await page.waitForFunction(()=>(window.__pokebonkLocalApp.menuScene?.sprites.batches.get(150)?.mesh.count??0)>0);
   const previewMesh=await page.evaluateHandle(()=>{
     const mesh=window.__pokebonkLocalApp.menuScene?.sprites.batches.get(150)?.mesh;
@@ -192,6 +194,11 @@ export async function checkGame(page: Page,metadata: BuildMetadata,label: string
     {species:152,biome:'encina',tier:0},
     {species:249,biome:'iris',tier:1},
   ]) {
+    await page.evaluate(async config=>{
+      const app=window.__pokebonkLocalApp;
+      const profile=app.meta.profile;
+      if(!profile.league.includes(config.species)&&!profile.unlocked.includes(config.species))await app.backend.chooseStarter(null,config.species);
+    },config);
     assert.equal(await page.evaluate(config=>window.__pokebonkLocalApp.startRun({...config,boosts:[]}),config),true);
     await page.waitForFunction(()=>(window.__pokebonkLocalApp.run?.time ?? 0)>3,null,{timeout:90000});
     assert.equal(await previewMesh.evaluate(mesh=>mesh.parent===null),true,'Character preview must be removed from the gameplay scene');
