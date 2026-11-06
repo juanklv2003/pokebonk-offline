@@ -16,7 +16,7 @@ Download the **Unlocked** archive or APK for your platform from the [latest rele
 
 Extract desktop archives and launch the included app. Install the APK on Android. Desktop builds are not commercially signed; macOS apps have verified ad-hoc signatures and are not notarized. The operating system may require user approval when first opening a download.
 
-Android updates use the same dedicated signing certificate and application ID, allowing APK updates without uninstalling. Keep the existing app installed to retain its data. Electron updates retain the same app name, storage origin, and user-data directory.
+Android updates use the same dedicated signing certificate and application ID, allowing APK updates without uninstalling; keep the existing app installed to retain its data. This repository signs with its own certificate, which differs from the upstream repository's, so an APK installed from upstream must be uninstalled once before installing this build. Electron updates retain the same app name, storage origin, and user-data directory.
 
 Android follows the game's responsive landscape viewport, using the [WebView wide-viewport support](https://developer.android.com/develop/ui/views/layout/webapps/targeting) needed to match Chrome scaling. Use the game's settings to adjust HUD size, touch-button size, minimap size, and camera distance. Display-cutout padding remains active to keep controls clear of the camera area.
 
