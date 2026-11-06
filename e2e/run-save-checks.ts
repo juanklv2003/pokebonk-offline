@@ -9,8 +9,12 @@ export async function checkRunSaves(page:Page,restart:()=>Promise<Page>,focus:()
   const baseline=await page.evaluate(()=>({runs:window.__pokebonkLocalApp.meta.profile.runs.length,hold:window.__pokebonkLocalApp.meta.profile.counters['holdSecs']??0}));
   let previousHold=baseline.hold;
   for(const kind of ['manual','auto'] as const) {
-    await page.evaluate(()=>window.__pokebonkLocalApp.startRun({species:4,biome:'forest',tier:0,boosts:[]}));
-    await page.waitForFunction(()=>(window.__pokebonkLocalApp.run?.time??0)>3,null,{timeout:30000});
+    const started=await page.evaluate(()=>window.__pokebonkLocalApp.startRun({species:4,biome:'forest',tier:0,boosts:[]}));
+    assert.equal(started,true,`Native ${kind} run must start without a pending recovery`);
+    // CI software rendering advances the simulation far below real time: the
+    // gameplay loop above regularly needs ~30 s for three game seconds, so this
+    // first-frame wait must not use a tighter budget than that loop.
+    await page.waitForFunction(()=>(window.__pokebonkLocalApp.run?.time??0)>3,null,{timeout:120000,polling:100});
     if(kind==='manual') {
       await page.evaluate(()=>{const run=window.__pokebonkLocalApp.run;if(!run)throw Error('Missing run');run.input.releaseLock();run.pause();});
       await page.waitForFunction(()=>document.pointerLockElement===null&&window.__pokebonkLocalApp.run?.state==='paused');
